@@ -31,4 +31,5 @@ async def on_ready():
 
 basicConfig()
 bot.load_extension("stats")
+bot.load_extension("analyze")
 bot.run(data["token"])

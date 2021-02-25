@@ -1,11 +1,10 @@
 from asyncio import sleep
-from asyncpg import DuplicateColumnError
+from asyncpg import DuplicateColumnError, UndefinedColumnError
 from datetime import datetime
-from discord import Embed, User
 from discord.ext import commands
-from discord.ext.menus import ListPageSource, MenuPages
+from discord.ext.tasks import loop
 
-# sql syntax to create the table beforehand
+# sql syntax to create the following tables beforehand
 """
 CREATE TABLE chats
 (
@@ -18,21 +17,13 @@ WITH (
 );
 """
 
-
-class ChatsMenu(ListPageSource):  # just shows number of messages, no functionality to check before or after some time
-    def __init__(self, data):
-        super().__init__(data, per_page=10)
-
-    async def format_page(self, menu, entries):
-        embed = Embed(title="Analysis",
-                      description=f'Page: {menu.current_page + 1}/{menu._source.get_max_pages()}')
-
-        # simple menu to display all channels and the numbers of messages by the user in those channels
-
-        for k, v in entries:  # k-> channel id, v -> number of messages
-            channel = menu.bot.get_channel(k)
-            embed.add_field(name=channel.name, value=f"{v}", inline=True)
-        return embed
+"""
+CREATE TABLE chats_setting
+(
+    userid numeric NOT NULL,
+    channel_id numeric NOT NULL
+);
+"""
 
 
 class chats(commands.Cog):
@@ -52,15 +43,7 @@ class chats(commands.Cog):
         # loops through all the channels in all the guild and adds them to the table if they are not already in it
         for guild in self.bot.guilds:
             for channel in guild.channels:
-
-                try:
-                    # channel id is used so even if the channel name changes it does not affect our db
-                    # column name cannot start with a number so _ is added
-                    await con.execute(f"ALTER TABLE chats ADD COLUMN _{str(channel.id)} timestamp with time zone[]")
-                except DuplicateColumnError:
-                    pass
-                except Exception as e:
-                    print(e)
+                await self.add_channel(con, channel)
 
     async def get_last_message(self, con):
         # go through the last entry in all the columns of the db and compare them to find latest timestamp
@@ -72,6 +55,17 @@ class chats(commands.Cog):
         # https://discordpy.readthedocs.io/en/latest/api.html?highlight=channel%20history#discord.TextChannel.history
         pass
 
+    @staticmethod
+    async def add_channel(con, channel):
+        try:
+            # channel id is used so even if the channel name changes it does not affect our db
+            # column name cannot start with a number so _ is added
+            await con.execute(f"ALTER TABLE chats ADD COLUMN _{str(channel.id)} timestamp with time zone[]")
+        except DuplicateColumnError:
+            pass
+        except Exception as e:
+            print(e)
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author == self.bot.user or message.author.bot:  # ignores messages by self or other bots
@@ -79,29 +73,23 @@ class chats(commands.Cog):
 
         channel = f"_{str(message.channel.id)}"
         async with self.bot.pool.acquire() as con:
-            result = await con.execute(f"UPDATE chats set {channel} = {channel} || $1::timestamp with time zone[] "
-                                       f"where userid = $2",
-                                       [message.created_at], message.author.id)
 
-            if result == "UPDATE 0":  # if result is UPDATE 0 the user had no earlier message in that channel
+            try:
+                result = await con.execute(f"UPDATE chats set {channel} = {channel} || $1::timestamp with time zone[] "
+                                           f"where userid = $2",
+                                           [message.created_at], message.author.id)
+
+                if result == "UPDATE 0":  # if result is UPDATE 0 the user had no earlier message in that channel
+                    await con.execute(f"INSERT INTO chats(userid, {channel}) VALUES($1, $2)",
+                                      message.author.id, [message.created_at])
+            except UndefinedColumnError:
+                await self.add_channel(con, message.channel)
                 await con.execute(f"INSERT INTO chats(userid, {channel}) VALUES($1, $2)",
                                   message.author.id, [message.created_at])
 
-    @commands.command()
-    async def analyze(self, ctx, user: User):
-        async with self.bot.pool.acquire() as con:
-            result = await con.fetch("select * from chats where userid = $1", user.id)
-
-            x = dict(result[0])
-            data = []
-            for k, v in x.items():
-                if v:  # if the array is empty, its not appended to the list
-                    if k == "userid":  # ignores the userid column
-                        continue
-                    data.append((int(k[1:]), len(v)))
-
-            pages = MenuPages(source=ChatsMenu(data), clear_reactions_after=True)
-            await pages.start(ctx)
+    @loop(minutes=30)
+    async def update_settings(self):
+        pass
 
 
 def setup(bot):

@@ -8,21 +8,24 @@ class ChatsMenu(ListPageSource):  # just shows number of messages, no functional
         super().__init__(data, per_page=10)
 
     async def format_page(self, menu, entries):
+        total_messages = [v for k, v in entries]
         embed = Embed(title="Analysis",
-                      description=f'Page: {menu.current_page + 1}/{menu._source.get_max_pages()}')
-
+                      description=f'Total Messages Sent: {sum(total_messages)}')
+        embed.set_footer(text=f'Page: {menu.current_page + 1}/{menu._source.get_max_pages()}')
         # simple menu to display all channels and the numbers of messages by the user in those channels
 
         for k, v in entries:  # k-> channel id, v -> number of messages
             channel = menu.bot.get_channel(k)
-            embed.add_field(name=channel.name, value=f"{v}", inline=True)
+            embed.add_field(name="Channel", value=channel.name, inline=True)
+            embed.add_field(name="Messages Sent", value=int(v), inline=True)
+            embed.add_field(name="Percentage", value=f'{round(int(v)/sum(total_messages) * 100)}%', inline=True)
+
         return embed
 
 
 class analyze(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        bot.loop.create_task(self.setup())
 
     @commands.command(name="analyze")
     async def _analyze(self, ctx, user: User):

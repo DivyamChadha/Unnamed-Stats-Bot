@@ -10,7 +10,8 @@ class chats(commands.Cog):
         bot.loop.create_task(self.get_last_message())
 
     async def get_last_message(self):
-        await sleep(5)
+        """Gets the last message stored in the database"""
+        await sleep(5)  # sleep gives time for the cache to be populated by the guilds
         async with self.bot.pool.acquire() as con:
             data = await con.fetchval("SELECT created_at from chats ORDER BY created_at DESC LIMIT 1")
 
@@ -19,7 +20,8 @@ class chats(commands.Cog):
             print(data)
             await self.update_missed_messages(con, data)
 
-    async def update_missed_messages(self, con, timestamp: datetime):  # timestamp should be of type datetime.datetime
+    async def update_missed_messages(self, con, timestamp: datetime):
+        """Updates the database with all the messages sent while the bot was offline"""
         for guild in self.bot.guilds:
             for channel in guild.channels:
                 if not isinstance(channel, TextChannel):

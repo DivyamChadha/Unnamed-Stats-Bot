@@ -22,7 +22,6 @@ class ChatsMenu(ListPageSource):  # just shows number of messages, no functional
 class analyze(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        bot.loop.create_task(self.setup())
 
     @commands.command(name="analyze")
     async def _analyze(self, ctx, user: User):

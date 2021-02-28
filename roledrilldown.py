@@ -38,8 +38,8 @@ class roledrilldown(commands.Cog):
             writer.writeheader()
             writer.writerows(data)
 
-    @commands.command()
-    async def role(self, ctx, roles: commands.Greedy[Role], *, time="None"):
+    @commands.command(aliases=["role"])
+    async def roles(self, ctx, roles: commands.Greedy[Role], *, time="None"):
         fieldnames = ["Name", "User ID", "Total"]
         data = []
         before, after = await self._convert_to_datetime(time)

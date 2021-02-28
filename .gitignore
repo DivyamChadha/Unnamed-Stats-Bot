@@ -3,6 +3,3 @@ confidential
 venv/
 __pycache__/
 _stats.py
-data.csv
-names.csv
-test.py

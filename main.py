@@ -32,4 +32,5 @@ async def on_ready():
 basicConfig()
 bot.load_extension("stats")
 bot.load_extension("analyze")
+bot.load_extension("roledrilldown")
 bot.run(data["token"])

@@ -1,8 +1,9 @@
 import csv
 from datetime import datetime
-from discord import File, Role, TextChannel
+from discord import File, InvalidArgument, Role, TextChannel
 from discord.ext import commands
 from functools import partial
+from zipfile import ZipFile, ZIP_BZIP2
 
 
 class roledrilldown(commands.Cog):
@@ -11,6 +12,12 @@ class roledrilldown(commands.Cog):
 
     @staticmethod
     async def _convert_to_datetime(data: str):
+        """Converts the provided data from str to datetime if found.
+            Format:
+             -b YYYY-MM-DD
+             -a YYYY-MM-DD
+        """
+
         words = data.split()
         before = None
         after = None
@@ -31,12 +38,19 @@ class roledrilldown(commands.Cog):
         return before, after
 
     @staticmethod
-    def write_csv(fieldnames: list, data: list):  # data is a list of dictionaries
-        with open("data.csv", "w") as file:
+    def _write_csv(fieldnames: list, data: list, file_name):  # data is a list of dictionaries
+        """Writes the data to a csv."""
+        with open(file_name, "w") as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
 
             writer.writeheader()
             writer.writerows(data)
+
+    @staticmethod
+    def _compress_and_zip(zip_name, file_name):
+        """Converts the provided file into a zip file with highest compressions possible."""
+        with ZipFile(zip_name, 'w', compression=ZIP_BZIP2, compresslevel=9) as zip_file:
+            zip_file.write(file_name)
 
     @commands.command(aliases=["role"])
     async def roles(self, ctx, roles: commands.Greedy[Role], *, time="None"):
@@ -47,20 +61,20 @@ class roledrilldown(commands.Cog):
             before = datetime.utcnow()
 
         members = []
-        for member in ctx.guild.members:
+        for member in ctx.guild.members:  # gets all the members in the guild having the provided roles
             check = any(role in member.roles for role in roles)
             if check is True:
                 members.append(member)
 
         channels = []
-        for channel in ctx.guild.channels:
+        for channel in ctx.guild.channels:  # gets all the text channels in the guild
             if not isinstance(channel, TextChannel):
                 continue
             fieldnames.append(channel.name)
             channels.append(channel)
 
         async with self.bot.pool.acquire() as con:
-            if after is None:
+            if after is None:  # condition 1: when after is not provided by the user.
                 for i, member in enumerate(members):
                     data.append({"Name": member.name, "User ID": member.id})
                     total = 0
@@ -74,7 +88,7 @@ class roledrilldown(commands.Cog):
                         total += result
                     data[i].update({"Total": total})
 
-            elif isinstance(after, datetime):
+            elif isinstance(after, datetime):  # condition 2: when after is provided by the user.
                 for i, member in enumerate(members):
                     data.append({"Name": member.name, "User ID": member.id})
                     total = 0
@@ -89,11 +103,20 @@ class roledrilldown(commands.Cog):
                         total += result
                     data[i].update({"Total": total})
 
-        partial_obj = partial(self.write_csv, fieldnames, data)
-        await self.bot.loop.run_in_executor(None, partial_obj)
+        partial_obj = partial(self._write_csv, fieldnames, data, f"{ctx.guild.name}.csv")
+        await self.bot.loop.run_in_executor(None, partial_obj)  # runs the blocking code in executor
+        csv_file = File(f"{ctx.guild.name}.csv")
 
-        csv_file = File("data.csv")
-        await ctx.send(file=csv_file)
+        try:
+            await ctx.send(file=csv_file)
+        except InvalidArgument:  # raised when the csv file size is too big to send
+
+            # csv is converted to zip
+            partial_obj = partial(self._compress_and_zip, f"{ctx.guild.name}.zip", f"{ctx.guild.name}.csv")
+            await self.bot.loop.run_in_executor(None, partial_obj)  # runs the blocking code in executor
+
+            zip_file = File(f"{ctx.guild.name}.zip")
+            await ctx.send(csv_file=zip_file)
 
 
 def setup(bot):

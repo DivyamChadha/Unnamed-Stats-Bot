@@ -1,7 +1,7 @@
 from asyncio import sleep
 from csv import DictWriter
 from datetime import datetime
-from discord import TextChannel
+from discord import Forbidden, HTTPException, TextChannel
 from discord.ext import commands
 from discord.ext.tasks import loop
 
@@ -33,9 +33,11 @@ class chats(commands.Cog):
             for channel in guild.channels:
                 if not isinstance(channel, TextChannel):  # ignore Voice and Category channels
                     continue
-
-                async for message in channel.history(limit=None, before=datetime.utcnow(), after=timestamp):
-                    missed_messages.append((message.author.id, message.channel.id, message.created_at))
+                try:
+                    async for message in channel.history(limit=None, before=datetime.utcnow(), after=timestamp):
+                        missed_messages.append((message.author.id, message.channel.id, message.created_at))
+                except Forbidden or HTTPException:
+                    pass
 
         if missed_messages:
             await con.copy_records_to_table('chats', records=missed_messages)

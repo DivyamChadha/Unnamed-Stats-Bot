@@ -4,6 +4,7 @@ from datetime import datetime
 from discord import Forbidden, HTTPException, TextChannel
 from discord.ext import commands
 from discord.ext.tasks import loop
+from functools import partial
 
 
 class chats(commands.Cog):
@@ -70,6 +71,14 @@ class chats(commands.Cog):
     @commands.command(name="reset-database")
     @commands.is_owner()
     async def reset_database(self, ctx):
+        """
+        - Clears the database.
+        - Converts the data into a csv before clearing.
+        - This command should be used by you periodically to avoid the database becoming too large.
+        - Analyze commands wont work for the data which has been cleared.
+        :/param ctx:
+        :/return:
+        """
         time_now = datetime.utcnow()
         data = []
         file_name = time_now.strftime('%m/%d/%Y')
@@ -80,9 +89,13 @@ class chats(commands.Cog):
 
         for value in values:
             data.append({"userid": value[0], "channel_id": value[1], "created_at": value[2]})
-        self._write_csv(["userid", "channel_id", "created_at"], data, f"{file_name}.csv")
 
-        await ctx.send(f"The database has been reset and a file has been created with the name {file_name}")
+        partial_obj = partial(self._write_csv, ["userid", "channel_id", "created_at"], data,
+                              f"{ctx.guild.name}-{file_name}.csv")
+        await self.bot.loop.run_in_executor(None, partial_obj)  # runs the blocking code in executor
+
+        await ctx.send(f"The database has been reset and a file has been created with the name "
+                       f"{ctx.guild.name}-{file_name}")
 
 
 def setup(bot):

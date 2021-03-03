@@ -3,3 +3,6 @@ confidential
 venv/
 __pycache__/
 _stats.py
+data.csv
+test.py
+roledrilldown.py

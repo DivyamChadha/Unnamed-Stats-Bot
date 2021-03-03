@@ -1,46 +1,40 @@
-from asyncio import sleep
-from datetime import datetime
-from discord import TextChannel
 from discord.ext import commands
+from discord.ext.tasks import loop
 
 
-class chats(commands.Cog):
+class stats(commands.Cog):
+    message_cache = []
+
     def __init__(self, bot):
         self.bot = bot
-        bot.loop.create_task(self.get_last_message())
+        self.insert_messages.start()
 
-    async def get_last_message(self):
-        """Gets the last message stored in the database"""
-        await sleep(5)  # sleep gives time for the cache to be populated by the guilds
-        async with self.bot.pool.acquire() as con:
-            data = await con.fetchval("SELECT created_at from chats ORDER BY created_at DESC LIMIT 1")
-
-            if data is None:
-                return
-            print(data)
-            await self.update_missed_messages(con, data)
-
-    async def update_missed_messages(self, con, timestamp: datetime):
-        """Updates the database with all the messages sent while the bot was offline"""
-        for guild in self.bot.guilds:
-            for channel in guild.channels:
-                if not isinstance(channel, TextChannel):
-                    continue
-
-                async for message in channel.history(limit=None, before=datetime.utcnow(), after=timestamp):
-                    await con.execute("INSERT INTO chats(userid, channel_id, created_at) values($1, $2, $3)",
-                                      message.author.id, message.channel.id, message.created_at)
-                    print(message.id)
+    def cog_unload(self):
+        self.bot.loop.create_task(self.insert_messages.__call__())
+        self.insert_messages.cancel()
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        """Event triggered on every message, adds the message-data to the cache"""
         if message.author == self.bot.user or message.author.bot:  # ignores messages by self or other bots
             return
+        self.message_cache.append((message.author.id, message.channel.id, message.created_at))
 
+    @loop(minutes=30)
+    async def insert_messages(self):
+        """Scheduled task to add messages to the database in small chunks"""
+        temp = self.message_cache.copy()  # just an extra security measure so that no message is missed without adding
+        self.message_cache.clear()
+
+        print(f"Inserting {len(temp)} messages.")
         async with self.bot.pool.acquire() as con:
-            await con.execute("INSERT INTO chats(userid, channel_id, created_at) values($1, $2, $3)",
-                              message.author.id, message.channel.id, message.created_at)
+            await con.copy_records_to_table('chats', records=temp)
+
+    @insert_messages.before_loop
+    async def before_inserting_messages(self):
+        """Waits for bots to be ready"""
+        await self.bot.wait_until_ready()
 
 
 def setup(bot):
-    bot.add_cog(chats(bot))
+    bot.add_cog(stats(bot))

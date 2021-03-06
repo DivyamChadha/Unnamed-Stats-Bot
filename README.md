@@ -1,83 +1,81 @@
 # Unnamed-Stats-Bot v1.0.0
 A simple stats bot made by [KLK](https://github.com/klk645445) and [Rocky](https://github.com/rockboy987).
-Currently being used and tested in [Official LdoE server](https://discord.com/invite/ldoe)
-
+Currently being used and tested in [Official LdoE server](https://discord.com/invite/ldoe) </br>
+Messages are loaded in the database every 30 minutes.
 
 ### Features:
 - User analysis
-- Role analysis
+- Role/s analysis
 - Channel analysis
 
 ### Setup:
 - Install the database and [create the table](https://github.com/rockboy987/Unnamed-Stats-Bot/tree/rocky#database)
+- Make sure you have the [required libraries](https://github.com/rockboy987/Unnamed-Stats-Bot#libraries-used).
 - Clone this repository to get the files
 - Create a json file named `confidential` with indent 0. It should have the following keys:
-    - token *(your [discord bot](https://discord.com/developers/applications) token)*
+    - [token](https://discord.com/developers/applications)
     - database_name
     - database_user
     - database_password
     - prefixes
     
-  ``````
+  ```
   {
   "token" : "",
   "database_name" : "",
   "database_user" : "",
   "database_password" : "",
   "prefixes" : ["?", "!"]
-    }
+  }
+  ```
+  
 - Run the main file and voila!
 
 - **Note**: For the bot to collect all the data properly it needs to have view channel, 
   read messages and read messages history permission in the channels where you want the stats to be maintained. 
   Further for the commands to work the bot needs send messages, embed messages and attach files permission.
     
-### Commands:
-| Name              | Description                 | Returns                  |
-| -------------     | --------------------------- | -------------            |
-| `anaylyze user`   | Analyzes a user             | Embedded menu            |
-| `anaylyze channel`| Analyzes a channel          | Embedded menu            |
-| `anaylyze roles`  | Analyzes one or more roles  | CSV or a Zip file        |
-| `reset-database`  | Clears the entire database  | CSV file to the directory|
+## Commands:
+| Name              | Description                     | Returns                  |
+| -------------     | ---------------------------     | -------------            |
+| `analyse`         | Analyzes a user, channel or role| Embedded menu or a CSV   |
+| `reload`          | Reloads/Refreshes a Cog         |            -             |
 
 ### Usage:
 The prefix for the examples below is assumed to be `?`
 
-#### ?anaylyze user {user}
-- {user} can be the @user-mention or can be the user's id. 
-- An optional argument `date_after` can be added to get messages after the date. <br/>
-  eg `?analyze user {user} -a YYYY-MM-DD`
-- An optional argument `date_before` can be added to get messages before the date. <br/>
-  eg `?analyze user {user} -b YYYY-MM-DD`
-- Both `date_after` and `date_before` can be used together as well. The order of input does not matter. <br/>
-  eg `?analyze user {user} -a YYYY-MM-DD -b YYYY-MM-DD`
+#### ?analyse <argument_type>
+ **<argument_type>** can be a discord _User_, _TextChannel_ or a _Role_. You can mention them, or use the ID instead.<br>
+ For User or TextChannel, analysis is done only for the first argument. To analyse more than one role separate each
+    role with a single space.<br>
+ - An optional argument `date_after` can be added to get messages after a certain date. <br>
+   eg `?analyse <argument_type> -a YYYY-MM-DD`
+- An optional argument `date_before` can be added to get messages before a certain date. <br>
+   eg `?analyse <argument_type> -b YYYY-MM-DD`
+- Both `date_after` and `date_before` can be used together as well. The order of input does not matter. <br>
+   eg `?analyse <argument_type> -a YYYY-MM-DD -b YYYY-MM-DD`
 
-#### ?anaylyze channel {channel}
-- {channel} can be the #channel-mention or can be the channel's id. 
-- An optional argument `date_after` can be added to get messages after the date. <br/>
-  eg `?analyze channel {channel} -a YYYY-MM-DD`
-- An optional argument `date_before` can be added to get messages before the date. <br/>
-  eg `?analyze channel {channel} -b YYYY-MM-DD`
-- Both `date_after` and `date_before` can be used together as well. The order of input does not matter. <br/>
-  eg `?analyze channel {channel} -a YYYY-MM-DD -b YYYY-MM-DD`
-  
-#### ?anaylyze roles {role1}{role2}..{roles}
-- {roles} can be the @role-mention or can be the role's id. There has to be at least one role. If multiple roles are 
-  provided the should be separated by a single space.
-- An optional argument `date_after` can be added to get messages after the date. <br/>
-  eg `?analyze roles {role} -a YYYY-MM-DD`
-- An optional argument `date_before` can be added to get messages before the date. <br/>
-  eg `?analyze roles {role} -b YYYY-MM-DD`
-- Both `date_after` and `date_before` can be used together as well. The order of input does not matter. <br/>
-  eg `?analyze roles {role} -a YYYY-MM-DD -b YYYY-MM-DD`
-- The optional arguments must be provided after all the roles.
+Examples:
+- ?analyse @Rockboy987#2519
+- ?analyse @LegendaryKLK#1559 -a 2021-02-28
+- ?analyse #general -b 2021-03-3
+- ?analyse @Moderators -a 2021-02-28 -b 2021-03-3
 
-#### ?reset-database
-- Clears the database.
-- Converts the data into a csv before clearing.
-- This command should be used by you periodically to avoid the database becoming too large.
-- Analyze commands wont work for the data which has been cleared.
+#### ?reload <cog-name>
+- Reloads a cog.
+- This bot has 2 cogs: `stats` and `analyze`.
+- Reloading `stats` cog will force update the database with all the messages that are currently in cache.
+- Reloading `analyze` does nothing.
 
+### Extras: 
+In the bots directory you will find 2 python scripts named `remove_duplicates.py` and `reset_database.py`.
+
+- The bot does an excellent work in ensuring no duplicates are stored in the database. However if any condition arises 
+resulting in the duplication of the messages, `remove_duplicates.py` can be run. It runs on the assumption that no user can 
+have 2 messages at the exact same time.
+- If you wish to remove all the current messages in the database and store them in a CSV then you can run 
+`reset_database.py`. It is recommended to do so occasionally to avoid database table from getting too big. However messages 
+once removed from the db cannot be analysed through the bot.
 
 ### Database:
 
@@ -88,8 +86,7 @@ CREATE TABLE chats
 (
     userid numeric NOT NULL,
     channel_id numeric NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    PRIMARY KEY (created_at)
+    created_at timestamp without time zone NOT NULL
 )
 
 WITH (
@@ -104,7 +101,7 @@ It should look something like this:
 |         |            |           |
 |         |            |           |
 
-### Libraries used:
+### External libraries used:
 
 - [discord.py](https://pypi.org/project/discord.py/)
 - [discord-ext-menus](https://github.com/Rapptz/discord-ext-menus)
@@ -114,6 +111,7 @@ It should look something like this:
 - Switch to a different database (such as Cassandra) since the bot is write-heavy.
 - Automated resetting/clearing of the database.
 - Ability to read older CSVs created on resetting and get analysis from them.
-- A better way to store older data than CSV (?)
+- A better way to store older data than CSV (?) 
+- Using regex to store all the data in a single text column (?)
 - Tell us.
 

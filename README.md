@@ -49,11 +49,17 @@ The prefix for the examples below is assumed to be `?`
  For User or TextChannel, analysis is done only for the first argument. To analyse more than one role separate each
     role with a single space.<br>
  - An optional argument `date_after` can be added to get messages after a certain date. <br>
-   eg `?analyze <argument_type> -a YYYY-MM-DD`
+   eg `?analyse <argument_type> -a YYYY-MM-DD`
 - An optional argument `date_before` can be added to get messages before a certain date. <br>
-   eg `?analyze <argument_type> -b YYYY-MM-DD`
+   eg `?analyse <argument_type> -b YYYY-MM-DD`
 - Both `date_after` and `date_before` can be used together as well. The order of input does not matter. <br>
-   eg `?analyze <argument_type> -a YYYY-MM-DD -b YYYY-MM-DD`
+   eg `?analyse <argument_type> -a YYYY-MM-DD -b YYYY-MM-DD`
+
+Examples:
+- ?analyse @Rockboy987#2519
+- ?analyse @LegendaryKLK#1559 -a 2021-02-28
+- ?analyse #general -b 2021-03-3
+- ?analyse @Moderators -a 2021-02-28 -b 2021-03-3
 
 #### ?reload <cog-name>
 - Reloads a cog.
@@ -65,10 +71,10 @@ The prefix for the examples below is assumed to be `?`
 In the bots directory you will find 2 python scripts named `remove_duplicates.py` and `reset_database.py`.
 
 - The bot does an excellent work in ensuring no duplicates are stored in the database. However if any condition arises 
-results in the duplication of the messages, `remove_duplicates.py` can be run. It runs on the assumption that no user can 
+resulting in the duplication of the messages, `remove_duplicates.py` can be run. It runs on the assumption that no user can 
 have 2 messages at the exact same time.
 - If you wish to remove all the current messages in the database and store them in a CSV then you can run 
-`reset_database.py`. It is recommended to do so occasionally to avoid database from getting too big. However messages 
+`reset_database.py`. It is recommended to do so occasionally to avoid database table from getting too big. However messages 
 once removed from the db cannot be analysed through the bot.
 
 ### Database:

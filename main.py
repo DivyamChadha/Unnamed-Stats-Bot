@@ -1,6 +1,6 @@
 from asyncio import get_event_loop as loop
 from asyncpg import create_pool as pool
-from datetime import datetime
+from datetime import datetime, timedelta
 from discord import Forbidden, HTTPException, Intents, TextChannel
 from discord.ext.commands import Bot, has_permissions
 from json import load
@@ -68,6 +68,27 @@ async def _update_missed_messages(con, timestamp: datetime):
     if missed_messages:
         print(f"Inserting {len(missed_messages)} messages that were missed.")
         await con.copy_records_to_table('chats', records=missed_messages)
+        await _remove_repeats(con, missed_messages[-1][2])
+
+
+async def _remove_repeats(con, message):
+    """On startup sometimes a small amount of data gets duplicated. This gets rid of it."""
+    values = await con.fetch("SELECT userid, created_at FROM chats WHERE created_at > $1",
+                             message - timedelta(minutes=5))
+
+    present = []
+    duplicate = []
+
+    for value in values:
+        if value not in present:
+            present.append(value)
+            continue
+        duplicate.append(value)
+
+    if duplicate:
+        print(f"Deleting {len(duplicate)} messages that were duplicated.")
+        await con.executemany("DELETE FROM chats WHERE ctid IN (SELECT ctid FROM chats WHERE userid = $1 and "
+                              "created_at = $2 LIMIT 1)", duplicate)
 
 basicConfig()
 bot.loop.create_task(_get_last_message())

@@ -258,7 +258,7 @@ class analyze(commands.Cog):
 
             zip_file = File(f"{ctx.guild.name}.zip")
             await ctx.send(f"Stats for the provided role between {after.strftime('%Y/%m/%d')} and "
-                           f"{before.strftime('%Y/%m/%d')}", csv_file=zip_file)
+                           f"{before.strftime('%Y/%m/%d')}", file=zip_file)
 
 
 def setup(bot):
